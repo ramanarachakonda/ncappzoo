@@ -111,7 +111,8 @@ def runimage(img1):
         cv2.imshow("Image", img1)
         key = cv2.waitKey(1000) & 0xFF
 
-cap = cv2.VideoCapture('../../data/videos/Test.MOV')
+#cap = cv2.VideoCapture('../../data/videos/Test.MOV')
+cap = cv2.VideoCapture('./contrapicado_traffic_shortened_960x540.mp4')
 
 while(cap.isOpened()):
     ret, img1 = cap.read()
