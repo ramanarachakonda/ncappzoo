@@ -114,7 +114,13 @@ output, userobj = graph.GetResult()
 # ***************************************************************
 # Print the results of the inference form the NCS
 # ***************************************************************
-print(output)
+# print(output)
+print('---------------------')
+for box_index in range(int(output[0])):
+    base_index = 7 + box_index * 7
+    print (output[base_index:base_index+7])
+print('---------------------')
+
 
 #   a.	First fp16 value holds the number of valid detections = no_valid.
 #   b.	The next 6 values are garbage.
@@ -125,6 +131,16 @@ num_valid_boxes = int(output[0])
 print("Number of valid Detections = ", num_valid_boxes)
 for ii in range(num_valid_boxes):
         base_index = 7+ ii * 7
+        if (numpy.isnan(output[base_index]) or
+            numpy.isnan(output[base_index+1]) or
+            numpy.isnan(output[base_index+2]) or
+            numpy.isnan(output[base_index+3]) or
+            numpy.isnan(output[base_index+4]) or
+            numpy.isnan(output[base_index+5]) or
+            numpy.isnan(output[base_index+6])  ):
+            print('skipping box ' + str(ii) + ' because its has NaN')
+            continue
+
         class_id = output[base_index + 1]
         prob = int(output[base_index + 2] * 100)
         disp_txt = labels[int(class_id)] + " (" + str(prob) + "%)"

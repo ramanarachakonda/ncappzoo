@@ -10,10 +10,15 @@ NCCHECK   = mvNCCheck
 # filenames for the graph files that we'll copy to this directory.
 SSD_MOBILENET_GRAPH_FILENAME = graph
 
-PROTOTXT_FILENAME= deploy.prototxt
-GET_PROTOTXT = wget -P . https:blah.com/deploy.prototxt
+#caffe model file:
+#https://drive.google.com/open?id=0B3gersZ2cHIxRm5PMWRoTkdHdHc
 
-CAFFEMODEL_FILENAME = NPS.caffemodel
+#PROTOTXT_FILENAME= MobileNetSSD_deploy.prototxt
+PROTOTXT_FILENAME= mobile_net_ssd.prototxt
+
+GET_PROTOTXT = wget -P . https://raw.githubusercontent.com/chuanqi305/MobileNet-SSD/master/MobileNetSSD_deploy.prototxt
+
+CAFFEMODEL_FILENAME = MobileNetSSD_deploy.caffemodel
 GET_CAFFEMODEL = wget -P . -N http://blah.com/${CAFFEMODEL_FILENAME}
 
 
