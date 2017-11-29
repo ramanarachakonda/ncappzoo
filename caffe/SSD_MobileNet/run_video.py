@@ -85,7 +85,7 @@ def runimage(img1):
         # ***************************************************************
         # Print the results of the inference form the NCS
         # ***************************************************************
-        print(output)
+        #print(output)
         
         #   a.	First fp16 value holds the number of valid detections = no_valid.
         #   b.	The next 6 values are garbage.
@@ -96,6 +96,16 @@ def runimage(img1):
         print("Number of valid Detections = ", num_valid_boxes)
         for ii in range(num_valid_boxes):
                 base_index = 7+ ii * 7
+                if (not numpy.isfinite(output[base_index]) or
+                        not numpy.isfinite(output[base_index + 1]) or
+                        not numpy.isfinite(output[base_index + 2]) or
+                        not numpy.isfinite(output[base_index + 3]) or
+                        not numpy.isfinite(output[base_index + 4]) or
+                        not numpy.isfinite(output[base_index + 5]) or
+                        not numpy.isfinite(output[base_index + 6])):
+                    #print('skipping box ' + str(ii) + ' because its has NaN')
+                    continue
+
                 class_id = output[base_index + 1]
                 prob = int(output[base_index + 2] * 100)
                 disp_txt = labels[int(class_id)] + " (" + str(prob) + "%)"

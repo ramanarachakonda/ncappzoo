@@ -131,13 +131,13 @@ num_valid_boxes = int(output[0])
 print("Number of valid Detections = ", num_valid_boxes)
 for ii in range(num_valid_boxes):
         base_index = 7+ ii * 7
-        if (numpy.isnan(output[base_index]) or
-            numpy.isnan(output[base_index+1]) or
-            numpy.isnan(output[base_index+2]) or
-            numpy.isnan(output[base_index+3]) or
-            numpy.isnan(output[base_index+4]) or
-            numpy.isnan(output[base_index+5]) or
-            numpy.isnan(output[base_index+6])  ):
+        if (not numpy.isfinite(output[base_index]) or
+            not numpy.isfinite(output[base_index + 1]) or
+            not numpy.isfinite(output[base_index + 2]) or
+            not numpy.isfinite(output[base_index + 3]) or
+            not numpy.isfinite(output[base_index + 4]) or
+            not numpy.isfinite(output[base_index + 5]) or
+            not numpy.isfinite(output[base_index + 6])):
             print('skipping box ' + str(ii) + ' because its has NaN')
             continue
 
