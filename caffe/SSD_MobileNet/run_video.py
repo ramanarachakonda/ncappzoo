@@ -31,6 +31,9 @@ labels = ('background',
 NETWORK_IMAGE_WIDTH = 300
 NETWORK_IMAGE_HEIGHT = 300
 
+# the minimal score for a box to be shown
+min_score_percent = 20
+
 resize_output = False
 resize_output_width = 0
 resize_output_height = 0
@@ -76,6 +79,9 @@ def overlay_on_image(display_image, object_info):
     base_index = 0
     class_id = object_info[base_index + 1]
     percentage = int(object_info[base_index + 2] * 100)
+    if (percentage <= min_score_percent):
+        return
+
     label_text = labels[int(class_id)] + " (" + str(percentage) + "%)"
     box_left = int(object_info[base_index + 3] * source_image_width)
     box_top = int(object_info[base_index + 4] * source_image_height)
@@ -138,14 +144,8 @@ def handle_args():
 
 
 
-def runimage(img1, ssd_mobilenet_graph):
-    #img = preprocess_image(img1)
-
-    resized_image = cv2.resize(img1, (NETWORK_IMAGE_WIDTH, NETWORK_IMAGE_HEIGHT))
-
-    # trasnform values from range 0-255 to range 0.0-1.0
-    resized_image = resized_image - 127.5
-    resized_image = resized_image * 0.007843
+def runimage(video_image, ssd_mobilenet_graph):
+    resized_image = preprocess_image(video_image)
 
     # ***************************************************************
     # Send the image to the NCS
@@ -176,7 +176,7 @@ def runimage(img1, ssd_mobilenet_graph):
                 # boxes with non infinite (inf, nan, etc) numbers must be ignored
                 continue
 
-            overlay_on_image(img1, output[base_index:base_index+7])
+            overlay_on_image(video_image, output[base_index:base_index + 7])
 
 
 # prints usage information
