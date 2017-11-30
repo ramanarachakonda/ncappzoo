@@ -30,7 +30,7 @@ GET_VIDEOS = wget -c --no-cache -P . https://raw.githubusercontent.com/nealvis/m
              wget -c --no-cache -P . https://raw.githubusercontent.com/nealvis/media/master/traffic_vid/scooters_5638_shortened_960x540.mp4
 
 .PHONY: all
-all: prereqs videos compile
+all: prereqs videos
 
 .PHONY: videos
 videos:
@@ -41,12 +41,8 @@ videos:
 .PHONY: prereqs
 prereqs:
 	@echo "\nmaking prereqs"
-	@sed -i 's/\r//' run.py
-	@chmod +x run.py
-	@sed -i 's/\r//' run_images.py
-	@chmod +x run_images.py	
-	@sed -i 's/\r//' run_video.py
-	@chmod +x run_video.py	
+	@sed -i 's/\r//' *.py
+	@chmod +x *.py
 
 .PHONY: prototxt
 prototxt: prereqs
@@ -97,12 +93,12 @@ run_py: prereqs compile
 	python3 ./run.py
 
 .PHONY: run_images_py
-run_images_py: prereqs compile
+run_images_py: prereqs 
 	@echo "\nmaking run_images_py"
 	python3 ./run_images.py
 
 .PHONY: run_video_py
-run_video_py: prereqs compile videos
+run_video_py: prereqs videos
 	@echo "\nmaking run_video_py"
 	python3 ./run_video.py
 
@@ -117,9 +113,9 @@ help:
 	@echo "possible make targets: ";
 	@echo "  make help - shows this message";
 	@echo "  make all - makes everything needed to run but doesn't run";
-	@echo "  make compile - compiles required networks with SDK compiler tool to create graph files";
 	@echo "  make run_py - runs the street_cam.py python example program";
-	@echo "  make opencv - removes pip3 opencv and builds from source then installs a new version" ;
+	@echo "  make run_video_py - runs the street_cam.py python example program";
+	@echo "  make opencv - removes pip3 opencv and builds from source then installs the built opencv" ;
 	@echo "  make clean - removes all created content"
 
 .PHONY: clean
