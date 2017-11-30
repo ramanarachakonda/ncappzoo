@@ -56,23 +56,26 @@ def handle_keys(raw_key):
 # display_image is the image on which to overlay the boxes/labels
 # object_info is a list of 7 values as returned from the network
 #     These 7 values describe the object found and they are:
-#         image_id (always 0 for myriad)
-#         class_id (this is an index into labels)
-#         score (this is the probability for the class)
-#         box left pixel location within the image
-#         box top pixel location within the image
-#         box right pixel location within the image
-#         box bottom pixel location within the image
+#         0: image_id (always 0 for myriad)
+#         1: class_id (this is an index into labels)
+#         2: score (this is the probability for the class)
+#         3: box left location within image as number between 0.0 and 1.0
+#         4: box top location within image as number between 0.0 and 1.0
+#         5: box right location within image as number between 0.0 and 1.0
+#         6: box bottom location within image as number between 0.0 and 1.0
 # returns None
 def overlay_on_image(display_image, object_info):
+    source_image_width = display_image.shape[1]
+    source_image_height = display_image.shape[0]
+
     base_index = 0
     class_id = object_info[base_index + 1]
     percentage = int(object_info[base_index + 2] * 100)
     label_text = labels[int(class_id)] + " (" + str(percentage) + "%)"
-    box_left = int(object_info[base_index + 3] * display_image.shape[0])
-    box_top = int(object_info[base_index + 4] * display_image.shape[1])
-    box_right = int(object_info[base_index + 5] * display_image.shape[0])
-    box_bottom = int(object_info[base_index + 6] * display_image.shape[1])
+    box_left = int(object_info[base_index + 3] * source_image_width)
+    box_top = int(object_info[base_index + 4] * source_image_height)
+    box_right = int(object_info[base_index + 5] * source_image_width)
+    box_bottom = int(object_info[base_index + 6] * source_image_height)
 
     box_color = (0, 255, 0)  # green box
     box_thickness = 2
@@ -118,6 +121,8 @@ def runimage(img1, ssd_mobilenet_graph):
     #   b.	The next 6 values are garbage.
     #   c.	The next no_valid * 7 values contain the valid detections data in the format:
     #   e.	image_id(always 0 for myriad) | class_id | score | decode_bbox.xmin | decode_bbox.ymin | decode_bbox.xmax | decode_bbox.ymax
+
+    # resize image
     img1 = cv2.resize(img1, (700,700))
 
     # number of boxes returned
