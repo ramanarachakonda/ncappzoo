@@ -12,6 +12,7 @@ import time
 import csv
 import os
 import sys
+from sys import argv
 
 # name of the opencv window
 cv_window_name = "SSD Mobilenet"
@@ -29,6 +30,10 @@ labels = ('background',
 
 NETWORK_IMAGE_WIDTH = 300
 NETWORK_IMAGE_HEIGHT = 300
+
+resize_output = False
+resize_output_width = 0
+resize_output_height = 0
 
 # ***************************************************************
 # Load the image
@@ -103,27 +108,59 @@ def overlay_on_image(display_image, object_info):
     cv2.putText(display_image, "Q to Quit", (10, 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1)
 
 
+#return False if found invalid args or True if processed ok
+def handle_args():
+    global resize_output, resize_output_width, resize_output_height
+    for an_arg in argv:
+        if (an_arg == argv[0]):
+            continue
+
+        elif (str(an_arg).lower() == 'help'):
+            return False
+
+        elif (str(an_arg).startswith('resize_window=')):
+            try:
+                arg, val = str(an_arg).split('=', 1)
+                width_height = str(val).split('x', 1)
+                resize_output_width = int(width_height[0])
+                resize_output_height = int(width_height[1])
+                resize_output = True
+                print ('GUI window resize now on: \n  width = ' +
+                       str(resize_output_width) +
+                       '\n  height = ' + str(resize_output_height))
+            except:
+                print('Error with resize_window argument: "' + an_arg + '"')
+                return False
+        else:
+            return False
+
+    return True
+
+
 
 def runimage(img1, ssd_mobilenet_graph):
-    img = preprocess_image(img1)
+    #img = preprocess_image(img1)
+
+    resized_image = cv2.resize(img1, (NETWORK_IMAGE_WIDTH, NETWORK_IMAGE_HEIGHT))
+
+    # trasnform values from range 0-255 to range 0.0-1.0
+    resized_image = resized_image - 127.5
+    resized_image = resized_image * 0.007843
 
     # ***************************************************************
     # Send the image to the NCS
     # ***************************************************************
-    ssd_mobilenet_graph.LoadTensor(img.astype(numpy.float16), 'user object')
+    ssd_mobilenet_graph.LoadTensor(resized_image.astype(numpy.float16), 'user object')
 
     # ***************************************************************
     # Get the result from the NCS
     # ***************************************************************
     output, userobj = ssd_mobilenet_graph.GetResult()
 
-    #   a.	First fp16 value holds the number of valid detections = no_valid.
+    #   a.	First fp16 value holds the number of valid detections = num_valid.
     #   b.	The next 6 values are garbage.
-    #   c.	The next no_valid * 7 values contain the valid detections data in the format:
+    #   c.	The next (7 * num_valid) values contain the valid detections data in the format:
     #   e.	image_id(always 0 for myriad) | class_id | score | decode_bbox.xmin | decode_bbox.ymin | decode_bbox.xmax | decode_bbox.ymax
-
-    # resize image
-    img1 = cv2.resize(img1, (700,700))
 
     # number of boxes returned
     num_valid_boxes = int(output[0])
@@ -141,12 +178,29 @@ def runimage(img1, ssd_mobilenet_graph):
 
             overlay_on_image(img1, output[base_index:base_index+7])
 
-    cv2.imshow(cv_window_name, img1)
+
+# prints usage information
+def print_usage():
+    print('\nusage: ')
+    print('python3 run_video.py [help][resize_window=<width>x<height>]')
+    print('')
+    print('options:')
+    print('  help - prints this message')
+    print('  resize_window - resizes the GUI window to specified dimensions')
+    print('                  must be formated similar to resize_window=1280x720')
+    print('')
+    print('Example: ')
+    print('python3 run_video.py resize_window=1920x1080')
 
 
 # This function is called from the entry point to do
 # all the work.
 def main():
+    global resize_output, resize_output_width, resize_output_height
+
+    if (not handle_args()):
+        print_usage()
+        return 1
 
     # configure the NCS
     mvnc.SetGlobalOption(mvnc.GlobalOption.LOG_LEVEL, 2)
@@ -180,7 +234,7 @@ def main():
     end_time = start_time
 
     while(cap.isOpened()):
-        ret, img1 = cap.read()
+        ret, display_image = cap.read()
 
         # check if the window is visible, this means the user hasn't closed
         # the window via the X button
@@ -189,7 +243,14 @@ def main():
             end_time = time.time()
             break
 
-        runimage(img1, ssd_mobilenet_graph)
+        runimage(display_image, ssd_mobilenet_graph)
+
+        if (resize_output):
+            display_image = cv2.resize(display_image,
+                                       (resize_output_width, resize_output_height),
+                                       cv2.INTER_LINEAR)
+        cv2.imshow(cv_window_name, display_image)
+
         raw_key = cv2.waitKey(1)
         if (raw_key != -1):
             if (handle_keys(raw_key) == False):
