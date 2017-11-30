@@ -13,13 +13,12 @@ import csv
 import os
 import sys
 
-dim=(300,300)
-EXAMPLES_BASE_DIR='../../'
-
+# name of the opencv window
 cv_window_name = "SSD Mobilenet"
 
 # ***************************************************************
-# get labels
+# get labels AKA classes.  The class IDs returned
+# are the indices into this list
 # ***************************************************************
 labels = ('background',
           'aeroplane', 'bicycle', 'bird', 'boat',
@@ -28,45 +27,19 @@ labels = ('background',
           'motorbike', 'person', 'pottedplant',
           'sheep', 'sofa', 'train', 'tvmonitor')
 
-# ***************************************************************
-# configure the NCS
-# ***************************************************************
-mvnc.SetGlobalOption(mvnc.GlobalOption.LOG_LEVEL, 2)
-
-# ***************************************************************
-# Get a list of ALL the sticks that are plugged in
-# ***************************************************************
-devices = mvnc.EnumerateDevices()
-if len(devices) == 0:
-	print('No devices found')
-	quit()
-
-# ***************************************************************
-# Pick the first stick to run the network
-# ***************************************************************
-device = mvnc.Device(devices[0])
-
-# ***************************************************************
-# Open the NCS
-# ***************************************************************
-device.OpenDevice()
-
-network_blob='graph'
-
-#Load blob
-with open(network_blob, mode='rb') as f:
-	blob = f.read()
-
-graph = device.AllocateGraph(blob)
+NETWORK_IMAGE_WIDTH = 300
+NETWORK_IMAGE_HEIGHT = 300
 
 # ***************************************************************
 # Load the image
 # ***************************************************************
-def preprocess(src):
-    img = cv2.resize(src, (300,300))
-    img = img - 127.5
-    img = img * 0.007843
-    return img
+def preprocess_image(source_image):
+    resized_image = cv2.resize(source_image, (NETWORK_IMAGE_WIDTH, NETWORK_IMAGE_HEIGHT))
+    
+    # trasnform values from range 0-255 to range 0.0-1.0
+    resized_image = resized_image - 127.5
+    resized_image = resized_image * 0.007843
+    return resized_image
 
 # handles key presses by adjusting global thresholds etc.
 # raw_key is the return value from cv2.waitkey
@@ -122,24 +95,24 @@ def overlay_on_image(display_image, object_info):
     # label text above the box
     cv2.putText(display_image, label_text, (label_left, label_bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.5, label_text_color, 1)
 
+    # display text to let user know how to quit
+    cv2.rectangle(display_image,(0, 0),(100, 15), (128, 128, 128), -1)
+    cv2.putText(display_image, "Q to Quit", (10, 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1)
 
-def runimage(img1):
-    img = preprocess(img1)
+
+
+def runimage(img1, ssd_mobilenet_graph):
+    img = preprocess_image(img1)
 
     # ***************************************************************
     # Send the image to the NCS
     # ***************************************************************
-    graph.LoadTensor(img.astype(numpy.float16), 'user object')
+    ssd_mobilenet_graph.LoadTensor(img.astype(numpy.float16), 'user object')
 
     # ***************************************************************
     # Get the result from the NCS
     # ***************************************************************
-    output, userobj = graph.GetResult()
-
-    # ***************************************************************
-    # Print the results of the inference form the NCS
-    # ***************************************************************
-    #print(output)
+    output, userobj = ssd_mobilenet_graph.GetResult()
 
     #   a.	First fp16 value holds the number of valid detections = no_valid.
     #   b.	The next 6 values are garbage.
@@ -166,44 +139,73 @@ def runimage(img1):
     cv2.imshow(cv_window_name, img1)
 
 
-#cap = cv2.VideoCapture('../../data/videos/Test.MOV')
-cap = cv2.VideoCapture('./contrapicado_traffic_shortened_960x540.mp4')
+# This function is called from the entry point to do
+# all the work.
+def main():
 
-cv2.namedWindow(cv_window_name)
+    # configure the NCS
+    mvnc.SetGlobalOption(mvnc.GlobalOption.LOG_LEVEL, 2)
 
-frame_count = 0
-start_time = time.time()
-end_time = start_time
+    # Get a list of ALL the sticks that are plugged in
+    devices = mvnc.EnumerateDevices()
+    if len(devices) == 0:
+        print('No devices found')
+        quit()
 
-while(cap.isOpened()):
-    ret, img1 = cap.read()
+    # Pick the first stick to run the network
+    device = mvnc.Device(devices[0])
 
-    # check if the window is visible, this means the user hasn't closed
-    # the window via the X button
-    prop_val = cv2.getWindowProperty(cv_window_name, cv2.WND_PROP_ASPECT_RATIO)
-    if (prop_val < 0.0):
-        end_time = time.time()
-        break
+    # Open the NCS
+    device.OpenDevice()
 
-    runimage(img1)
-    raw_key = cv2.waitKey(1)
-    if (raw_key != -1):
-        if (handle_keys(raw_key) == False):
+    graph_filename = 'graph'
+
+    # Load graph file
+    with open(graph_filename, mode='rb') as f:
+        graph_data = f.read()
+
+    ssd_mobilenet_graph = device.AllocateGraph(graph_data)
+
+    cap = cv2.VideoCapture('./contrapicado_traffic_shortened_960x540.mp4')
+
+    cv2.namedWindow(cv_window_name)
+
+    frame_count = 0
+    start_time = time.time()
+    end_time = start_time
+
+    while(cap.isOpened()):
+        ret, img1 = cap.read()
+
+        # check if the window is visible, this means the user hasn't closed
+        # the window via the X button
+        prop_val = cv2.getWindowProperty(cv_window_name, cv2.WND_PROP_ASPECT_RATIO)
+        if (prop_val < 0.0):
             end_time = time.time()
             break
-    frame_count += 1
 
-frames_per_second = frame_count / (end_time - start_time)
-print('Frames per Second: ' + str(frames_per_second))
+        runimage(img1, ssd_mobilenet_graph)
+        raw_key = cv2.waitKey(1)
+        if (raw_key != -1):
+            if (handle_keys(raw_key) == False):
+                end_time = time.time()
+                break
+        frame_count += 1
 
-
-# ***************************************************************
-# Clean up the graph and the device
-# ***************************************************************
-graph.DeallocateGraph()
-device.CloseDevice()
-
-cap.release()
-cv2.destroyAllWindows()
+    frames_per_second = frame_count / (end_time - start_time)
+    print('Frames per Second: ' + str(frames_per_second))
 
 
+    # ***************************************************************
+    # Clean up the graph and the device
+    # ***************************************************************
+    ssd_mobilenet_graph.DeallocateGraph()
+    device.CloseDevice()
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+# main entry point for program. we'll call main() to do what needs to be done.
+if __name__ == "__main__":
+    sys.exit(main())
