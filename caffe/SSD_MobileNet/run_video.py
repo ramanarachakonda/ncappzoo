@@ -79,21 +79,31 @@ def handle_keys(raw_key):
     return True
 
 
-def overlay_on_image(image, object_info):
+# overlays the boxes and labels onto the display image.
+# display_image is the image on which to overlay the boxes/labels
+# object_info is a list of 7 values as returned from the network
+#     These 7 values describe the object found and they are:
+#         image_id (always 0 for myriad)
+#         class_id (this is an index into labels)
+#         score (this is the probability for the class)
+#         box left pixel location within the image
+#         box top pixel location within the image
+#         box right pixel location within the image
+#         box bottom pixel location within the image
+# returns None
+def overlay_on_image(display_image, object_info):
     base_index = 0
     class_id = object_info[base_index + 1]
-    prob = int(object_info[base_index + 2] * 100)
-    label_text = labels[int(class_id)] + " (" + str(prob) + "%)"
-    box_left = int(object_info[base_index + 3] * image.shape[0])
-    box_top = int(object_info[base_index + 4] * image.shape[1])
-    box_right = int(object_info[base_index + 5] * image.shape[0])
-    box_bottom = int(object_info[base_index + 6] * image.shape[1])
+    percentage = int(object_info[base_index + 2] * 100)
+    label_text = labels[int(class_id)] + " (" + str(percentage) + "%)"
+    box_left = int(object_info[base_index + 3] * display_image.shape[0])
+    box_top = int(object_info[base_index + 4] * display_image.shape[1])
+    box_right = int(object_info[base_index + 5] * display_image.shape[0])
+    box_bottom = int(object_info[base_index + 6] * display_image.shape[1])
 
-    #cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 3)
-    # draw the rectangle on the image.  This is hopefully around the object
     box_color = (0, 255, 0)  # green box
     box_thickness = 2
-    cv2.rectangle(image, (box_left, box_top), (box_right, box_bottom), box_color, box_thickness)
+    cv2.rectangle(display_image, (box_left, box_top), (box_right, box_bottom), box_color, box_thickness)
 
     # draw the classification label string just above and to the left of the rectangle
     label_background_color = (70, 120, 70)  # greyish green background for text
@@ -106,15 +116,11 @@ def overlay_on_image(image, object_info):
         label_top = 1
     label_right = label_left + label_size[0]
     label_bottom = label_top + label_size[1]
-    cv2.rectangle(image, (label_left - 1, label_top - 1), (label_right + 1, label_bottom + 1),
+    cv2.rectangle(display_image, (label_left - 1, label_top - 1), (label_right + 1, label_bottom + 1),
                   label_background_color, -1)
 
     # label text above the box
-    cv2.putText(image, label_text, (label_left, label_bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.5, label_text_color, 1)
-
-    #font = cv2.FONT_HERSHEY_SIMPLEX
-    #cv2.putText(image, disp_txt, (x1, y1 + 30), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
-
+    cv2.putText(display_image, label_text, (label_left, label_bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.5, label_text_color, 1)
 
 
 def runimage(img1):
@@ -140,8 +146,9 @@ def runimage(img1):
     #   c.	The next no_valid * 7 values contain the valid detections data in the format:
     #   e.	image_id(always 0 for myriad) | class_id | score | decode_bbox.xmin | decode_bbox.ymin | decode_bbox.xmax | decode_bbox.ymax
     img1 = cv2.resize(img1, (700,700))
+
+    # number of boxes returned
     num_valid_boxes = int(output[0])
-    #print("Number of valid Detections = ", num_valid_boxes)
     for ii in range(num_valid_boxes):
             base_index = 7+ ii * 7
             if (not numpy.isfinite(output[base_index]) or
@@ -152,12 +159,9 @@ def runimage(img1):
                     not numpy.isfinite(output[base_index + 5]) or
                     not numpy.isfinite(output[base_index + 6])):
                 # boxes with non infinite (inf, nan, etc) numbers must be ignored
-                #print('skipping box ' + str(ii) + ' because its has NaN')
                 continue
 
             overlay_on_image(img1, output[base_index:base_index+7])
-
-            #print("Class ID of ", ii , " is = ", labels[int(class_id)], "Confidence = ", output[base_index + 2]*100, "% @(", output[base_index + 3], "," , output[base_index + 4], ") to (", output[base_index + 5], "," , output[base_index + 6], ")")
 
     cv2.imshow(cv_window_name, img1)
 
@@ -167,6 +171,10 @@ cap = cv2.VideoCapture('./contrapicado_traffic_shortened_960x540.mp4')
 
 cv2.namedWindow(cv_window_name)
 
+frame_count = 0
+start_time = time.time()
+end_time = start_time
+
 while(cap.isOpened()):
     ret, img1 = cap.read()
 
@@ -174,6 +182,7 @@ while(cap.isOpened()):
     # the window via the X button
     prop_val = cv2.getWindowProperty(cv_window_name, cv2.WND_PROP_ASPECT_RATIO)
     if (prop_val < 0.0):
+        end_time = time.time()
         break
 
     runimage(img1)
@@ -181,8 +190,12 @@ while(cap.isOpened()):
     if (raw_key != -1):
         if (handle_keys(raw_key) == False):
             end_time = time.time()
-            exit_app = True
             break
+    frame_count += 1
+
+frames_per_second = frame_count / (end_time - start_time)
+print('Frames per Second: ' + str(frames_per_second))
+
 
 # ***************************************************************
 # Clean up the graph and the device
