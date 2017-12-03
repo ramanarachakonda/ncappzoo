@@ -38,6 +38,9 @@ resize_output = False
 resize_output_width = 0
 resize_output_height = 0
 
+# read video files from this directory
+input_video_path = '.'
+
 # ***************************************************************
 # Load the image
 # ***************************************************************
@@ -164,6 +167,7 @@ def runimage(video_image, ssd_mobilenet_graph):
 
     # number of boxes returned
     num_valid_boxes = int(output[0])
+    print('num boxes: ' + str(num_valid_boxes))
     for ii in range(num_valid_boxes):
             base_index = 7+ ii * 7
             if (not numpy.isfinite(output[base_index]) or
@@ -225,41 +229,81 @@ def main():
 
     ssd_mobilenet_graph = device.AllocateGraph(graph_data)
 
-    cap = cv2.VideoCapture('./contrapicado_traffic_shortened_960x540.mp4')
+    # get list of all the .mp4 files in the image directory
+    input_video_filename_list = os.listdir(input_video_path)
+    input_video_filename_list = [i for i in input_video_filename_list if i.endswith('.mp4')]
+
+    if (len(input_video_filename_list) < 1):
+        # no images to show
+        print('No video (.mp4) files found')
+        return 1
 
     cv2.namedWindow(cv_window_name)
+    cv2.moveWindow(cv_window_name, 10,  10)
 
-    frame_count = 0
-    start_time = time.time()
-    end_time = start_time
+    exit_app = False
+    while (True):
+        for input_video_file in input_video_filename_list :
 
-    while(cap.isOpened()):
-        ret, display_image = cap.read()
+            cap = cv2.VideoCapture(input_video_file)
 
-        # check if the window is visible, this means the user hasn't closed
-        # the window via the X button
-        prop_val = cv2.getWindowProperty(cv_window_name, cv2.WND_PROP_ASPECT_RATIO)
-        if (prop_val < 0.0):
-            end_time = time.time()
+            actual_frame_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            actual_frame_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            print ('actual video resolution: ' + str(actual_frame_width) + ' x ' + str(actual_frame_height))
+
+            if ((cap == None) or (not cap.isOpened())):
+                print ('Could not open video device.  Make sure file exists:')
+                print ('file name:' + input_video_file)
+                print ('Also, if you installed python opencv via pip or pip3 you')
+                print ('need to uninstall it and install from source with -D WITH_V4L=ON')
+                print ('Use the provided script: install-opencv-from_source.sh')
+
+            frame_count = 0
+            start_time = time.time()
+            end_time = start_time
+
+            while(True):
+                ret, display_image = cap.read()
+
+                if (not ret):
+                    end_time = time.time()
+                    print("No image from from video device, exiting")
+                    break
+
+                # check if the window is visible, this means the user hasn't closed
+                # the window via the X button
+                prop_val = cv2.getWindowProperty(cv_window_name, cv2.WND_PROP_ASPECT_RATIO)
+                if (prop_val < 0.0):
+                    end_time = time.time()
+                    exit_app = True
+                    break
+
+                runimage(display_image, ssd_mobilenet_graph)
+
+                if (resize_output):
+                    display_image = cv2.resize(display_image,
+                                               (resize_output_width, resize_output_height),
+                                               cv2.INTER_LINEAR)
+                cv2.imshow(cv_window_name, display_image)
+
+                raw_key = cv2.waitKey(1)
+                if (raw_key != -1):
+                    if (handle_keys(raw_key) == False):
+                        end_time = time.time()
+                        exit_app = True
+                        break
+                frame_count += 1
+
+            frames_per_second = frame_count / (end_time - start_time)
+            print('Frames per Second: ' + str(frames_per_second))
+
+            cap.release()
+
+            if (exit_app):
+                break;
+
+        if (exit_app):
             break
-
-        runimage(display_image, ssd_mobilenet_graph)
-
-        if (resize_output):
-            display_image = cv2.resize(display_image,
-                                       (resize_output_width, resize_output_height),
-                                       cv2.INTER_LINEAR)
-        cv2.imshow(cv_window_name, display_image)
-
-        raw_key = cv2.waitKey(1)
-        if (raw_key != -1):
-            if (handle_keys(raw_key) == False):
-                end_time = time.time()
-                break
-        frame_count += 1
-
-    frames_per_second = frame_count / (end_time - start_time)
-    print('Frames per Second: ' + str(frames_per_second))
 
 
     # ***************************************************************
@@ -268,7 +312,7 @@ def main():
     ssd_mobilenet_graph.DeallocateGraph()
     device.CloseDevice()
 
-    cap.release()
+
     cv2.destroyAllWindows()
 
 
