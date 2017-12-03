@@ -167,7 +167,7 @@ def runimage(video_image, ssd_mobilenet_graph):
 
     # number of boxes returned
     num_valid_boxes = int(output[0])
-    print('num boxes: ' + str(num_valid_boxes))
+    #print('num boxes: ' + str(num_valid_boxes))
     for ii in range(num_valid_boxes):
             base_index = 7+ ii * 7
             if (not numpy.isfinite(output[base_index]) or
