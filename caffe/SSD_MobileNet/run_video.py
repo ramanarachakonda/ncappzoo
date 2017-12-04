@@ -32,7 +32,7 @@ NETWORK_IMAGE_WIDTH = 300
 NETWORK_IMAGE_HEIGHT = 300
 
 # the minimal score for a box to be shown
-min_score_percent = 20
+min_score_percent = 60
 
 resize_output = False
 resize_output_width = 0
@@ -56,9 +56,16 @@ def preprocess_image(source_image):
 # raw_key is the return value from cv2.waitkey
 # returns False if program should end, or True if should continue
 def handle_keys(raw_key):
+    global min_score_percent
     ascii_code = raw_key & 0xFF
     if ((ascii_code == ord('q')) or (ascii_code == ord('Q'))):
         return False
+    elif (ascii_code == ord('B')):
+        min_score_percent += 5
+        print('New minimum box percentage: ' + str(min_score_percent) + '%')
+    elif (ascii_code == ord('b')):
+        min_score_percent -= 5
+        print('New minimum box percentage: ' + str(min_score_percent) + '%')
 
     return True
 
@@ -91,12 +98,19 @@ def overlay_on_image(display_image, object_info):
     box_right = int(object_info[base_index + 5] * source_image_width)
     box_bottom = int(object_info[base_index + 6] * source_image_height)
 
-    box_color = (0, 255, 0)  # green box
+    box_color = (255, 128, 0)  # box color
+    #box_color = (0, 255, 255)  # box color
     box_thickness = 2
     cv2.rectangle(display_image, (box_left, box_top), (box_right, box_bottom), box_color, box_thickness)
 
+    scale_max = (100.0 - min_score_percent)
+    scaled_prob = (percentage - min_score_percent)
+    scale = scaled_prob / scale_max
+    #print('scale: ' + str(scale))
+
     # draw the classification label string just above and to the left of the rectangle
-    label_background_color = (70, 120, 70)  # greyish green background for text
+    #label_background_color = (70, 120, 70)  # greyish green background for text
+    label_background_color = (0, int(scale * 175), 75)
     label_text_color = (255, 255, 255)  # white text
 
     label_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
